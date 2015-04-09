@@ -44,7 +44,7 @@ G4VPhysicalVolume *SingleCrystalConstruction::Construct()
 	G4NistManager* nist = G4NistManager::Instance();
 
 	// World
-	G4double world_sizeXY = 10*cm;
+	G4double world_sizeXY = 5*cm;
 	G4double world_sizeZ  = 30*cm;
 
 	G4double detOffset = 2*cm;
@@ -108,6 +108,7 @@ G4VPhysicalVolume *SingleCrystalConstruction::Construct()
 	//--------------- Teflon ---------------------------------
 	G4Material* teflonMaterial = nist->FindOrBuildMaterial("G4_TEFLON");
 
+	G4OpticalSurface *teflonSurface = NULL;
 	if (fUseOptical) {
 		G4MaterialPropertiesTable * teflon_MPT = new G4MaterialPropertiesTable();
 
@@ -122,6 +123,18 @@ G4VPhysicalVolume *SingleCrystalConstruction::Construct()
 		teflon_MPT->AddProperty("ABSLENGTH", teflon_Energy, teflon_absorption, nEntries);
 
 		teflonMaterial->SetMaterialPropertiesTable(teflon_MPT);
+
+		//Create surface properties
+		G4MaterialPropertiesTable *teflonSurface_MPT = new G4MaterialPropertiesTable();
+		G4double teflon_reflectivity[nEntries] = {0.98, 0.98};
+		teflonSurface_MPT->AddProperty("REFLECTIVITY", teflon_Energy, teflon_reflectivity, nEntries);
+
+		//Create the optical surface
+		teflonSurface = new G4OpticalSurface("teflonSurface");
+		teflonSurface->SetType(dielectric_dielectric);
+		//GroundFrontPainted finish specifies only reflection or absorption. 100% Lambertian
+		teflonSurface->SetFinish(groundfrontpainted);
+		teflonSurface->SetMaterialPropertiesTable(teflonSurface_MPT);
 	}
 
 	//--------------- LaBr3(Ce) ------------------------------
@@ -173,6 +186,13 @@ G4VPhysicalVolume *SingleCrystalConstruction::Construct()
 			35.*cm, 35.*cm, 35.*cm, 35.*cm,
 			35.*cm, 35.*cm, 35.*cm};
 		*/
+		/*
+			{1.*mm, 1.*mm, 1.*mm, 1.*mm, 1.*mm, 
+			1.*mm, 1.*mm, 1.*mm, 1.*mm, 1.*mm, 
+			1.*mm, 1.*mm, 1.*mm, 1.*mm, 
+			1.*mm, 1.*mm, 1.*mm, 1.*mm,
+			1.*mm, 1.*mm, 1.*mm};
+		*/	
 
 		LaBrCe_MPT->AddProperty("ABSLENGTH", LaBr_Energy, LaBr_ABSL, nEntries);
 
@@ -183,12 +203,41 @@ G4VPhysicalVolume *SingleCrystalConstruction::Construct()
 			14.118*cm, 14.417*cm, 14.716*cm};
 		LaBrCe_MPT->AddProperty("RAYLEIGH", LaBr_Energy, LaBr_RayleighAbs, nEntries);
 
+		//Following is a calculated quantity that most likely underestiamtes the abs length.
+		G4double LaBr_WLSABS[nEntries] = 
+			{0.0123851*cm, 0.00283096*cm, 0.0012378*cm, 0.000979046*cm, 
+			 0.00133068*cm, 0.00296152*cm, 0.0102811*cm, 0.0524681*cm, 
+			 0.356516*cm, 2.69712*cm, 18.9965*cm, 128.423*cm, 963.998*cm, 
+			 8687.01*cm, 95426.1*cm, 1.26774E6*cm, 2.00875E7*cm, 
+			 3.74093E8*cm, 8.07423E9*cm, 1.99343E11*cm, 5.56163E12*cm};
+		//LaBrCe_MPT->AddProperty("WLSABSLENGTH", LaBr_Energy, LaBr_ABSL, nEntries);
+
 		//63 photons / keV
-		LaBrCe_MPT->AddConstProperty("SCINTILLATIONYIELD", 6.3/keV);
-		LaBrCe_MPT->AddConstProperty("RESOLUTIONSCALE", sqrt(10));
+		LaBrCe_MPT->AddConstProperty("SCINTILLATIONYIELD",6.3/keV);
+		LaBrCe_MPT->AddConstProperty("RESOLUTIONSCALE", 0.71);
 		LaBrCe_MPT->AddConstProperty("FASTTIMECONSTANT", 16.*ns);
 
 		LaBr3_Ce->SetMaterialPropertiesTable(LaBrCe_MPT);
+	}
+
+	//--------------- Glass Window ---------------------------
+	G4Material* glassMaterial = nist->FindOrBuildMaterial("G4_Pyrex_Glass");
+
+	if (fUseOptical) {
+		//Create Material Properties Table to store optical properties
+		G4MaterialPropertiesTable *glassMTP = new G4MaterialPropertiesTable();
+
+		const G4int nEntries = 2;
+		G4double LaBr_Energy[nEntries] = {3.82495*eV, 2.91425*eV};
+		//Index of reflection
+		G4double rIndex_Glass[nEntries]=
+			{1.49,1.49};
+		glassMTP->AddProperty("RINDEX",LaBr_Energy,rIndex_Glass,nEntries);
+		//Absorbstion length
+		G4double absLength_Glass[nEntries]={420.*cm,420.*cm};
+		glassMTP->AddProperty("ABSLENGTH",LaBr_Energy,absLength_Glass,nEntries);
+
+		glassMaterial->SetMaterialPropertiesTable(glassMTP);
 	}
 
 	//--------------- PMT ------------------------------------
@@ -199,6 +248,42 @@ G4VPhysicalVolume *SingleCrystalConstruction::Construct()
 	pmtMaterial->AddElement(Rb,1);
 	pmtMaterial->AddElement(Cs,1);
 
+	G4OpticalSurface* opSurfPMT;
+
+	if (fUseOptical) {
+		//--------------- PMT Optical Properties -----------------
+		opSurfPMT = new G4OpticalSurface("opSurfPMT");
+		opSurfPMT->SetModel(unified);
+		//Must be dielectric metal for detection
+		opSurfPMT->SetType(dielectric_metal);
+		opSurfPMT->SetFinish(polished);
+
+		//Define optical surface optical properties 
+		G4MaterialPropertiesTable* opSurfPMT_MPT = new G4MaterialPropertiesTable();
+		const G4int numEntries = 22;
+		G4double pmtEnergies[numEntries] = 
+			{4.531417*eV, 4.214736*eV, 4.059972*eV, 3.870475*eV, 3.677380*eV, 3.502637*eV, 3.326978*eV,
+			 3.168097*eV, 3.065617*eV, 2.891889*eV, 2.794437*eV, 2.692368*eV, 2.587361*eV, 2.518601*eV,
+			 2.417636*eV, 2.365904*eV, 2.308279*eV, 2.193781*eV, 2.083541*eV, 1.977935*eV, 1.882518*eV,
+			 1.748549*eV};
+
+		G4double pmtReflectivity[numEntries] = {0}; 
+		opSurfPMT_MPT->AddProperty("REFLECTIVITY",pmtEnergies,pmtReflectivity,numEntries);
+
+		//Efficiencncy from http://www.hamamatsu.com/us/en/technology/innovation/photocathode/index.html
+		//Quantum Efficiency 
+		G4double pmtEfficiency[numEntries] = 
+			{0.198864, 0.284091, 0.313920, 0.339489, 0.348011, 0.349432, 0.348011, 
+			0.342330, 0.335227, 0.315341, 0.299716, 0.276989, 0.237216, 0.207386, 
+			0.163352, 0.140625, 0.117898, 0.075284, 0.042614, 0.019886, 0.007102,
+			0.000000};
+			//{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+		//We can use the efficiecny as the reflectivity is 0
+		opSurfPMT_MPT->AddProperty("EFFICIENCY",pmtEnergies,pmtEfficiency,numEntries);
+		
+		opSurfPMT->SetMaterialPropertiesTable(opSurfPMT_MPT);
+
+	}
 	//-------------------------------------------------------
 	//------------ Construct Volumes ------------------------
 	//-------------------------------------------------------
@@ -338,7 +423,7 @@ G4VPhysicalVolume *SingleCrystalConstruction::Construct()
 				teflonMaterial,
 				"teflonLiner");						
 
-	//G4PVPlacement *physTeflon = 
+	G4PVPlacement *physTeflon = 
 	new G4PVPlacement(0,
 			teflonLinerPos,
 			logicTeflonLiner,
@@ -372,7 +457,7 @@ G4VPhysicalVolume *SingleCrystalConstruction::Construct()
 		"LaBr3Crystal");						
 	logicLaBr3Crystal->SetVisAttributes(new G4VisAttributes(G4Colour(1,0.33,1)));
 
-	//G4PVPlacement *physLaBr3Crystal = 
+	G4PVPlacement *physLaBr3Crystal = 
 	new G4PVPlacement(
 		0,
 		laBr3CrystalPos,
@@ -383,25 +468,16 @@ G4VPhysicalVolume *SingleCrystalConstruction::Construct()
 		0,
 		checkOverlaps);
 
-//--------------- Glass Window ---------------------------
-	G4Material* glassMaterial = nist->FindOrBuildMaterial("G4_Pyrex_Glass");
-
 	if (fUseOptical) {
-		//Create Material Properties Table to store optical properties
-		G4MaterialPropertiesTable *glassMTP = new G4MaterialPropertiesTable();
-
-		const G4int nEntries = 2;
-		G4double LaBr_Energy[nEntries] = {3.82495*eV, 2.91425*eV};
-		//Index of reflection
-		G4double rIndex_Glass[nEntries]={1.49,1.49};
-		glassMTP->AddProperty("RINDEX",LaBr_Energy,rIndex_Glass,nEntries);
-		//Absorbstion length
-		G4double absLength_Glass[nEntries]={420.*cm,420.*cm};
-		glassMTP->AddProperty("ABSLENGTH",LaBr_Energy,absLength_Glass,nEntries);
-
-		glassMaterial->SetMaterialPropertiesTable(glassMTP);
+		//Add optical border surface between LaBr3 and teflon.
+		new G4LogicalBorderSurface(
+				"teflonCrystalSurface",
+				physLaBr3Crystal,
+				physTeflon,
+				teflonSurface);
 	}
 
+//--------------- Glass Window ---------------------------
 	//If mother volume is the world use the following
 	//G4ThreeVector glassFacePos = teflonLinerPos + G4ThreeVector(0,0,teflonHeight - glassThickness/2.);
 #ifdef POLYCONE
@@ -504,46 +580,10 @@ G4VPhysicalVolume *SingleCrystalConstruction::Construct()
 
 	}
 
-
-	//------------- Optical Surfaces --------------------------------------
 	if (fUseOptical) {
-		//--------------- Glass -> PMT Optical Surface -----------
-		
-		G4OpticalSurface* opSurfPMT = new G4OpticalSurface("opSurfTeflon");
-		//Must be dielectric metal for detection
-		opSurfPMT->SetType(dielectric_metal);
-		//opSurfPMT->SetSigmaAlpha(0.0);
-		//opSurfPMT->SetModel(unified);
-		//opSurfPMT->SetFinish(polished);
-
-		//Define optical surface optical properties 
-		G4MaterialPropertiesTable* opSurfPMT_MPT = new G4MaterialPropertiesTable();
-		const G4int numEntries = 22;
-		G4double pmtEnergies[numEntries] = {4.531417*eV, 4.214736*eV, 4.059972*eV, 3.870475*eV, 3.677380*eV, 3.502637*eV, 3.326978*eV, 3.168097*eV, 3.065617*eV, 2.891889*eV, 2.794437*eV, 2.692368*eV, 2.587361*eV, 2.518601*eV, 2.417636*eV, 2.365904*eV, 2.308279*eV, 2.193781*eV, 2.083541*eV, 1.977935*eV, 1.882518*eV, 1.748549*eV};
-		//Efficiencncy from http://www.hamamatsu.com/us/en/technology/innovation/photocathode/index.html
-		//Quantum Efficiency 
-		G4double pmtEfficiency[numEntries] = 
-			{0.198864, 0.284091, 0.313920, 0.339489, 0.348011, 0.349432, 0.348011, 
-			0.342330, 0.335227, 0.315341, 0.299716, 0.276989, 0.237216, 0.207386, 
-			0.163352, 0.140625, 0.117898, 0.075284, 0.042614, 0.019886, 0.007102,
-			0.000000};
-		/*
-			{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-		*/
-		G4double pmtReflectivity[numEntries] = {0}; 
-
-
-		opSurfPMT_MPT->AddProperty("REFLECTIVITY",pmtEnergies,pmtReflectivity,numEntries);
-		//We can use the efficiecny as the reflectivity is 0
-		opSurfPMT_MPT->AddProperty("EFFICIENCY",pmtEnergies,pmtEfficiency,numEntries);
-
-		opSurfPMT->SetMaterialPropertiesTable(opSurfPMT_MPT);
-
 		//Create the optical surface as the directional border from first
 		//	physical volume to the second physical volume
 		new G4LogicalBorderSurface("opSurfGlassPMT", physGlass, physPMT, opSurfPMT);
-		//G4OpticalSurface *opSurf = new G4OpticalSurface("PMTOpSurf",PMTLogic,opSurfPMT);
-
 	}
 
 	//Return the world
