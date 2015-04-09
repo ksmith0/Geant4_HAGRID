@@ -2,10 +2,12 @@
 #define OPTICALDETECTION_H
 
 #include "G4VPrimitiveScorer.hh"
-#include "G4Step.hh"
-#include "G4TouchableHistory.hh"
-#include "G4HCofThisEvent.hh"
 #include "G4THitsMap.hh"
+
+//Forward declarations
+class G4HCofThisEvent;
+class G4Step;
+class G4TouchableHistory;
 
 class OpticalDetection : public G4VPrimitiveScorer
 {
