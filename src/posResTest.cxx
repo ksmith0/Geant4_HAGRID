@@ -21,7 +21,6 @@
 #include "PhysicsList.h"
 
 #include "SingleCrystalConstruction.h"
-#include "ArgonneBetaDetConstruction.h"
 #include "PosResTestActionInitialization.h"
 
 int main(int argc, char** argv)
@@ -34,7 +33,7 @@ int main(int argc, char** argv)
 #endif
 
 	//Initialize detector construction
-	runManager->SetUserInitialization(new SingleCrystalConstruction(true));
+	runManager->SetUserInitialization(new SingleCrystalConstruction(false));
 	//runManager->SetUserInitialization(new ArgonneBetaDetConstruction(true));
 
 	//Initialize physics list
