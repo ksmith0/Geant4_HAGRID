@@ -10,7 +10,7 @@
 class SingleCrystalConstruction : public G4VUserDetectorConstruction
 {
 	private:
-		G4bool fUseOptical;
+		G4bool useOptical_;
 		
 	public:
 		SingleCrystalConstruction(G4bool useOptical=true);
