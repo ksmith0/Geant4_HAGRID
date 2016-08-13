@@ -5,7 +5,7 @@
 PencilBeamRunAction::PencilBeamRunAction() :
 	G4UserRunAction(),
 	fManager(0),
-	fSDoffset(7)
+	fSDoffset(8)
 {
 }
 
@@ -21,6 +21,7 @@ void PencilBeamRunAction::BeginOfRunAction(const G4Run*)
 	fManager->CreateNtupleDColumn("primaryPy");
 	fManager->CreateNtupleDColumn("primaryPz");
 	fManager->CreateNtupleDColumn("primaryTotEn");
+	fManager->CreateNtupleDColumn("beta");
 
 	//Get the number of Sensitive Detectors
 	G4HCtable *hitCollectionTable = G4SDManager::GetSDMpointer()->GetHCtable();
