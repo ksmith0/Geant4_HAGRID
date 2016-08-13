@@ -1,10 +1,11 @@
 #include "SingleCrystalConstruction.h"
 
 #include "G4NistManager.hh"
-#include "G4Box.hh"
 #include "G4SystemOfUnits.hh"
+
 #include "G4LogicalVolume.hh"
 #include "G4PVPlacement.hh"
+#include "G4Orb.hh"
 
 //layer visible attributes
 //#include "G4VisAttributes.hh"
@@ -42,10 +43,11 @@ G4VPhysicalVolume *SingleCrystalConstruction::Construct()
 	G4NistManager* nist = G4NistManager::Instance();
 
 	// World
-	G4double world_sizeXY = 10*cm;
-	G4double world_sizeZ  = 100*cm;
+	G4double worldSize  = 100*cm;
 
-	G4double detOffset = 25*cm;
+	G4double detRadius = 25.*cm;
+	G4double detPhi = 180.*deg;
+	G4double detTheta = 0.*deg;
 
 	HagridCrystal *hagrid = new HagridCrystal();
 
@@ -76,9 +78,7 @@ G4VPhysicalVolume *SingleCrystalConstruction::Construct()
 	//-------------------------------------------------------
 
 	//------------ World Volume -----------------------------
-	G4Box* solidWorld =    
-		new G4Box("World",                       //its name
-				0.5*world_sizeXY, 0.5*world_sizeXY, 0.5*world_sizeZ);    //its size
+	G4Orb* solidWorld = new G4Orb("World", 0.5 * worldSize);
 
 	G4LogicalVolume* logicWorld =                         
 		new G4LogicalVolume(solidWorld,          //its solid
@@ -96,8 +96,29 @@ G4VPhysicalVolume *SingleCrystalConstruction::Construct()
 			checkOverlaps);	//overlap checking
 
 
-	hagrid->Construct(logicWorld, G4ThreeVector(0,0,detOffset));//, G4RotationMatrix(0,90.*deg,0));
+	G4ThreeVector postion(0,0,detRadius);
+	G4RotationMatrix rotation(0,detPhi,90*deg + detTheta);
+	postion.transform(rotation);
+	hagrid->Construct(logicWorld, postion, rotation);
+/*
+	G4Box *ruler = 
+		new G4Box("ruler", 55.8/2*mm, 1*mm, 25*cm);    //its size
+		
+	G4LogicalVolume* rulerLogic = new G4LogicalVolume(
+		ruler,
+		air,
+		"ruler");					
 
+	G4Transform3D transform = G4Transform3D(G4RotationMatrix(0,detPhi,90*deg),G4ThreeVector(0,0,0));
+	new G4PVPlacement(
+			transform,
+			rulerLogic,
+			"ruler",
+			logicWorld,
+			false,
+			0,
+			checkOverlaps);
+*/
 	//Return the world
 	return physWorld;
 }
