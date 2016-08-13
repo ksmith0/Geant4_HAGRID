@@ -21,6 +21,9 @@
 #include "G4SDParticleFilter.hh"
 #include "OpticalDetection.h"
 
+#include "G4ThreeVector.hh"
+#include "G4RotationMatrix.hh"
+
 #include "HagridCrystal.h"
 
 //#define POLYCONE
