@@ -19,7 +19,7 @@ PencilBeamPrimaryGenerator::PencilBeamPrimaryGenerator() :
 	//G4ParticleDefinition* particle = particleTable->FindParticle("e-");
 	fParticleGun->SetParticleDefinition(particle);
 	fParticleGun->SetParticleMomentumDirection(G4ThreeVector(0.,0.,1.));
-	fParticleGun->SetParticleEnergy(1.333*MeV);
+	fParticleGun->SetParticleEnergy(0.66167*MeV);
 }
 
 PencilBeamPrimaryGenerator::~PencilBeamPrimaryGenerator()
@@ -43,31 +43,43 @@ void PencilBeamPrimaryGenerator::GeneratePrimaries(G4Event* anEvent)
 	G4double phi = 0; //polar
 	G4double theta = 0; //azimuthal
 
+	G4ThreeVector direction;
+
+/*
 	//Isotropic emission
  	phi = acos(2 * G4UniformRand() - 1); //polar
 	theta = 2 * 3.14159 * G4UniformRand();
+	direction = G4ThreeVector(sin(theta)*cos(phi),sin(theta)*sin(phi),cos(theta));
+*/
 
 	//Isotropic limited to detector.
+	// First we make a cone pointed at polar angle = 0 with constraints on detector size.
+	//  Polar angle varies from 0 to size of detector. Azimuthal angle varies across 2 pi.
+	//  theta = Polar Angle 
+	//  phi = Azimuthal Angle
 	G4double detRadius = 55.8*mm / 2.;
 	G4double detDistance = 25*cm;
-	G4double	detPhi = 180.*deg;
 	G4double	detTheta = 0.*deg;
-	phi =  acos(cos((2 * G4UniformRand() -1) * (atan(detRadius / detDistance))));
-	theta = 2 * 3.14159 * G4UniformRand();
-	
-	G4ThreeVector direction(sin(phi)*cos(theta),sin(phi)*sin(theta),cos(phi));
-	direction.transform(G4RotationMatrix(0,detPhi,90.*deg + detTheta));
+	G4double	detPhi = 0.*deg;
+	G4double cosThetaMax = cos(atan(detRadius / detDistance));
+	theta = acos((1 - cosThetaMax) * G4UniformRand() + cosThetaMax);
+	phi = 2 * 3.14159 * G4UniformRand();
+	direction = G4ThreeVector(sin(theta)*cos(phi),sin(theta)*sin(phi),cos(theta));
+	//The cone is then transformed to the correct angle.
+	direction.transform(G4RotationMatrix(0,detTheta,90.*deg + detPhi));
+
+	//Then we can set the direction of momentum.
 	fParticleGun->SetParticleMomentumDirection(direction);
-	//fParticleGun->SetParticleMomentumDirection(G4ThreeVector(sin(phi)*cos(theta),sin(phi)*sin(theta),cos(phi)));
 	
 	//Random energy
 	G4double energy = pow(10.,(2*G4UniformRand()-1))*MeV;
-	energy = 1.333*MeV;
+	energy = 0.66167*MeV;
 	//Relativistic Doppler Broadening.
-	G4double beta = 0.7;
-	energy *= sqrt(1 - beta) / (1 - beta * cos(phi));
+	G4double beta = 0.3;
+	//doppler shift based on polar angle theta.
+	energy *= sqrt(1 - pow(beta,2)) / (1 - beta * cos(direction.theta()));
 	fParticleGun->SetParticleEnergy(energy);
-//
+
 	fParticleGun->GeneratePrimaryVertex(anEvent);
 
 	G4RootAnalysisManager* analysisManager = G4RootAnalysisManager::Instance();

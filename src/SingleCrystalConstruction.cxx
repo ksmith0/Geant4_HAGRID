@@ -49,8 +49,8 @@ G4VPhysicalVolume *SingleCrystalConstruction::Construct()
 	G4double worldSize  = 100*cm;
 
 	G4double detRadius = 25.*cm;
-	G4double detPhi = 180.*deg;
-	G4double detTheta = 0.*deg;
+	G4double detTheta = 70.*deg; //Polar Angle
+	G4double detPhi = 0.*deg; //Azimuthal Angle
 
 	HagridCrystal *hagrid = new HagridCrystal();
 
@@ -100,7 +100,7 @@ G4VPhysicalVolume *SingleCrystalConstruction::Construct()
 
 
 	G4ThreeVector postion(0,0,detRadius);
-	G4RotationMatrix rotation(0,detPhi,90*deg + detTheta);
+	G4RotationMatrix rotation(0,detTheta,90*deg + detPhi);
 	postion.transform(rotation);
 	hagrid->Construct(logicWorld, postion, rotation);
 /*
